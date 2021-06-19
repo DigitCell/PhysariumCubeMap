@@ -34,15 +34,15 @@ public:
 
     bool CollisionResponse(Body& a, Body& b)
     {
-        Vec2 direction_norm=Norm(a.position-b.position);
+        Vec2 direction_norm=Norm(a.p-b.p);
         Vec2 a_r= -a.radius*direction_norm;
         Vec2 a_ro= Vec2(-a_r.y,a_r.x);
         Vec2 b_r= b.radius*direction_norm;
         Vec2 b_ro=Vec2(-b_r.y,b_r.x);
 
 
-        Vec2 vp = a.velocity + Vec2(-a.angle_velocity*a_r.y, a.angle_velocity*a_r.x)
-                - b.velocity - Vec2(-b.angle_velocity*b_r.y, b.angle_velocity*b_r.x);
+        Vec2 vp = a.v + Vec2(-a.w*a_r.y, a.w*a_r.x)
+                - b.v - Vec2(-b.w*b_r.y, b.w*b_r.x);
         float vp_p=Dot(vp, direction_norm);
 
         if (vp_p >= 0) { // do they move apart?
@@ -52,26 +52,26 @@ public:
         float e=1.55f; //elastity between 1 and 2
 /*
         float j = - e * vp_p / (
-                    1.0f/a.mass + pow(Dot(a_r,direction_norm),2) / a.momentInertia +
-                    1.0f/b.mass + pow(Dot(b_r,direction_norm),2) / b.momentInertia
+                    1.0f/a.m + pow(Dot(a_r,direction_norm),2) / a.i +
+                    1.0f/b.m + pow(Dot(b_r,direction_norm),2) / b.i
                 );
 
         */
 
         float j = - e * vp_p / (
-                    1.0f/a.mass + pow(Cross(a_ro,direction_norm),2) / a.momentInertia +
-                    1.0f/b.mass + pow(Cross(b_ro,direction_norm),2) / b.momentInertia
+                    1.0f/a.m + pow(Cross(a_ro,direction_norm),2) / a.i +
+                    1.0f/b.m + pow(Cross(b_ro,direction_norm),2) / b.i
                 );
 
         Vec2 jn=j*direction_norm;
 
-        a.velocity=a.velocity+jn/a.mass;
-        //a.angle_velocity=a.angle_velocity+Cross(a_r,jn) / a.momentInertia;
-        a.angle_velocity=a.angle_velocity+j/ a.momentInertia;
+        a.v=a.v+jn/a.m;
+        //a.w=a.w+Cross(a_r,jn) / a.i;
+        a.w=a.w+j/ a.i;
 
         Vec2 jnN=-jn;
-        b.velocity=b.velocity+jnN/b.mass;
-        b.angle_velocity=b.angle_velocity-j / b.momentInertia;
+        b.v=b.v+jnN/b.m;
+        b.w=b.w-j / b.i;
 
 
 
@@ -81,24 +81,24 @@ public:
 
     bool CollisionResponse2(Body& a, Body& b)
     {
-        Vec2 direction_norm=Norm(a.position-b.position);
-        Vec2 p= a.position-a.radius*direction_norm;
+        Vec2 direction_norm=Norm(a.p-b.p);
+        Vec2 p= a.p-a.radius*direction_norm;
         //Vec2 a_ro= Vec2(a_r.y, -a_r.x);
-        //Vec2 b_r=b.position -b.radius*direction_norm;
+        //Vec2 b_r=b.p -b.radius*direction_norm;
         //Vec2 b_ro= Vec2(b_r.y, -b_r.x);
 
 
         float jj;
         Vec2 v, vv1, vv2, ap, bp;
 
-        ap =  p - Vec2(a.position.x, a.position.y);  /////// p is point where two triangles collide  // v is edge of collision
-        bp =  p - Vec2(b.position.x, b.position.y);;  //cm is center of mass
+        ap =  p - Vec2(a.p.x, a.p.y);  /////// p is point where two triangles collide  // v is edge of collision
+        bp =  p - Vec2(b.p.x, b.p.y);;  //cm is center of mass
 
         Vec2 ap_o=Vec2(ap.y, -ap.x);
         Vec2 bp_o=Vec2(bp.y, -bp.x);
 
-        vv2 = a.velocity + Vec2(-ap.y, ap.x)*a.angle_velocity;  //omega is angular speed
-        vv1 = b.velocity - Vec2(-bp.y, bp.x)*b.angle_velocity;
+        vv2 = a.v + Vec2(-ap.y, ap.x)*a.w;  //omega is angular speed
+        vv1 = b.v - Vec2(-bp.y, bp.x)*b.w;
 
         v = direction_norm;    /////rotate vector clokwise 90 degrees // v is now normal vector
         ap = ap_o;
@@ -107,20 +107,20 @@ public:
         //impulse magnitude
         float e=0.25f; //elastity between 1 and 2
 
-        jj = Dot(vv2 - vv1,-(1.0f+e)*v) / ((Dot(v,v)*(1.0f/ a.mass+ 1.0f/ b.mass))
-            + pow(Dot(ap,v),2) / a.momentInertia + pow(Dot(bp,v),2) / b.momentInertia);
+        jj = Dot(vv2 - vv1,-(1.0f+e)*v) / ((Dot(v,v)*(1.0f/ a.m+ 1.0f/ b.m))
+            + pow(Dot(ap,v),2) / a.i + pow(Dot(bp,v),2) / b.i);
 
-        //i.speed = i.speed + v*((jj) / i.mass);
-       // j.speed = j.speed + v*((-jj) / j.mass);
+        //i.speed = i.speed + v*((jj) / i.m);
+       // j.speed = j.speed + v*((-jj) / j.m);
 
         //i.omega = i.omega + ap*(v*((jj) / i.angmass));  // angmass is angular mass , Moment of inertia
        // j.omega = j.omega + bp*(v*((-jj) / j.angmass));
 
-        a.velocity=a.velocity+ v*((jj) / a.mass);
-        a.angle_velocity=a.angle_velocity+ Dot(ap,v*jj) / a.momentInertia;
+        a.v=a.v+ v*((jj) / a.m);
+        a.w=a.w+ Dot(ap,v*jj) / a.i;
 
-        b.velocity=b.velocity+ v*((-jj) / b.mass);
-        b.angle_velocity=b.angle_velocity+ Dot(bp,v*(-jj)) / b.momentInertia;
+        b.v=b.v+ v*((-jj) / b.m);
+        b.w=b.w+ Dot(bp,v*(-jj)) / b.i;
 
 
 
@@ -133,43 +133,43 @@ public:
         float eps = 1e-7f;
         float mu=0.3175f, cor=0.97f;
 
-        Vec2 direction_norm=Norm(b.position-a.position);
+        Vec2 direction_norm=Norm(b.p-a.p);
 
         Vec2 n = direction_norm;
-        Vec2 dv = a.velocity +  a.radius*a.angle_velocity*Vec2(-n.y, n.x)
-                 -(b.velocity - b.radius*b.angle_velocity*Vec2(-n.y, n.x));
+        Vec2 dv = a.v +  a.radius*a.w*Vec2(-n.y, n.x)
+                 -(b.v - b.radius*b.w*Vec2(-n.y, n.x));
 
         // normal impulse
-        float fn = -(1.0+cor)*(Dot(n,dv))/(1.0/a.mass  + 1.0/b.mass );
+        float fn = -(1.0+cor)*(Dot(n,dv))/(1.0/a.m  + 1.0/b.m );
         // tangential unit vector
         Vec2 t = dv -Dot(n,dv)*n;
         float t_n = Length(t);
         t = t_n > eps ? t/t_n : t;
 
-        float ft_match_velocity = -1.0*Dot(dv,t)/(//1.0/a.mass+1.0/b.mass
-                                                   + a.radius*a.radius/a.momentInertia
-                                                   + b.radius*b.radius/b.momentInertia);
-        float sign_ft_match_velocity = ft_match_velocity > 0.0 ? 1.0 : -1.0;
+        float ft_match_v = -1.0*Dot(dv,t)/(1.0/a.m+1.0/b.m
+                                                   + a.radius*a.radius/a.i
+                                                   + b.radius*b.radius/b.i);
+        float sign_ft_match_v = ft_match_v > 0.0 ? 1.0 : -1.0;
         // tangential impulse. track sign of the impulse here since we use fabs
 
-        float ft = fabs (ft_match_velocity) < mu*fabs (fn) ?
-                    ft_match_velocity : sign_ft_match_velocity*fabs (fn)*mu;
+        float ft = fabs (ft_match_v) < mu*fabs (fn) ?
+                    ft_match_v : sign_ft_match_v*fabs (fn)*mu;
         Vec2 f = fn*n + ft*t;
 
-       // translational velocity
-       //aparticle.velocity+= f/aparticle.mass;
-       //bparticle.velocity-= f/bparticle.mass;
-       // angular velocity
+       // translational v
+       //aparticle.v+= f/aparticle.m;
+       //bparticle.v-= f/bparticle.m;
+       // angular v
 
-       //aparticle.anglevelocity+=  aparticle.radius*Cross(n,f)/aparticle.Iw;
-       //bparticle.anglevelocity+=  bparticle.radius*Cross(n,f)/bparticle.Iw;
+       //aparticle.anglev+=  aparticle.radius*Cross(n,f)/aparticle.Iw;
+       //bparticle.anglev+=  bparticle.radius*Cross(n,f)/bparticle.Iw;
 
 
-        a.velocity=a.velocity+ f/ a.mass;
-        a.angle_velocity=a.angle_velocity+  a.radius*Cross(n,f) / a.momentInertia;
+        a.v=a.v+ f/ a.m;
+        a.w=a.w+  a.radius*Cross(n,f) / a.i;
 
-        b.velocity=b.velocity- f / b.mass;
-        b.angle_velocity=b.angle_velocity+  b.radius*Cross(n,f) / b.momentInertia;
+        b.v=b.v- f / b.m;
+        b.w=b.w+  b.radius*Cross(n,f) / b.i;
 
         return true;
 
@@ -178,29 +178,29 @@ public:
     bool CollisionResponseWall3(Body& a, Vec2 n)
     {
         float eps = 1e-9f;
-        float mu=0.075f, cor=0.95f;
+        float mu=0.0175f, cor=0.95f;
 
         //Vec2 n = direction_norm;
-        Vec2 dv = a.velocity +  a.radius*a.angle_velocity*Vec2(-n.y, n.x);
+        Vec2 dv = a.v +  a.radius*a.w*Vec2(-n.y, n.x);
         // normal impulse
-        float fn = -(1.0+cor)*(Dot(n,dv))/(1.0/a.mass );
+        float fn = -(1.0+cor)*(Dot(n,dv))/(1.0/a.m );
         // tangential unit vector
         Vec2 t = dv -Dot(n,dv)*n;
         float t_n = Length(t);
         t = t_n > eps ? t/t_n : t;
 
-        float ft_match_velocity = -1.0*Dot(dv,t)/(//1.0/a.mass+1.0/b.mass
-                                                   + a.radius*a.radius/a.momentInertia);
-        float sign_ft_match_velocity = ft_match_velocity > 0.0 ? 1.0 : -1.0;
+        float ft_match_v = -1.0*Dot(dv,t)/(//1.0/a.m+1.0/b.m
+                                                   + a.radius*a.radius/a.i);
+        float sign_ft_match_v = ft_match_v > 0.0 ? 1.0 : -1.0;
         // tangential impulse. track sign of the impulse here since we use fabs
 
-        float ft = fabs (ft_match_velocity) < mu*fabs (fn) ?
-                    ft_match_velocity : sign_ft_match_velocity*fabs (fn)*mu;
+        float ft = fabs (ft_match_v) < mu*fabs (fn) ?
+                    ft_match_v : sign_ft_match_v*fabs (fn)*mu;
         Vec2 f = fn*n + ft*t;
 
 
-        a.velocity=a.velocity+ f/ a.mass;
-        a.angle_velocity=a.angle_velocity+  a.radius*Cross(n,f) / a.momentInertia;
+        a.v=a.v+ f/ a.m;
+        a.w=a.w+  a.radius*Cross(n,f) / a.i;
 
         return true;
     }
@@ -219,7 +219,7 @@ public:
         {
            for(auto& agentB:env->agents)
            {
-               auto delta=agentA.position-agentB.position;
+               auto delta=agentA.p-agentB.p;
                float sumRadius=agentA.radius+agentB.radius;
 
                if(sumRadius>abs(delta.x)+abs(delta.y))
@@ -252,7 +252,7 @@ public:
 
                     bool activeDistance=false;
 
-                    auto delta=agentA.position-agentB.position;
+                    auto delta=agentA.p-agentB.p;
                     float sumRadius=agentA.radius+agentB.radius;
                     float deltaLenth=Length(delta);
                    // if(sumRadius>2*abs(delta.x)+abs(delta.y))
@@ -263,13 +263,13 @@ public:
                             activeDistance=true;
                             collisionVector.push_back(std::make_pair(indexA,indexB));
 
-                            auto delta=agentA.position-agentB.position;
+                            auto delta=agentA.p-agentB.p;
                             float sumRadius=agentA.radius+agentB.radius;
                             float deltaLenth=(abs(sumRadius-Length(delta))+deltaR)/2.0f;
                             auto norm=Normalize(delta);
 
-                            agentA.position=agentA.position+deltaLenth*norm;
-                            agentB.position=agentB.position-deltaLenth*norm;
+                            agentA.p=agentA.p+deltaLenth*norm;
+                            agentB.p=agentB.p-deltaLenth*norm;
 
                             agentA.collide=true;
                             agentB.collide=true;
@@ -316,8 +316,8 @@ public:
                                      {
 
 
-                                         Vec2 deltaSub=agentA.subPosition[sa]-agentB.subPosition[sb];
-                                         float deltaLengthSub=Length(deltaSub);//Dot(agentA.subPosition[sa],agentB.subPosition[sb]);// //compare quard also normal
+                                         Vec2 deltaSub=agentA.subp[sa]-agentB.subp[sb];
+                                         float deltaLengthSub=Length(deltaSub);//Dot(agentA.subp[sa],agentB.subp[sb]);// //compare quard also normal
                                          if(deltaLengthSub<minLength)// and !env->agents[indexA].subBodyArray[sa].use and !env->agents[indexB].subBodyArray[sb].use)
                                          {
                                            findConstraint=true;
@@ -383,13 +383,13 @@ public:
             auto&& agentA=env->agents[collide_pair.first];
             auto&& agentB=env->agents[collide_pair.second];
 /*
-            auto delta=agentA.position-agentB.position;
+            auto delta=agentA.p-agentB.p;
             float sumRadius=agentA.radius+agentB.radius;
             float deltaLenth=abs(Length(delta)-sumRadius)/2.0f+0.0001f;
             auto norm=Normalize(delta);
 
-            agentA.position=agentA.position+deltaLenth*norm;
-            agentB.position=agentB.position-deltaLenth*norm;
+            agentA.p=agentA.p+deltaLenth*norm;
+            agentB.p=agentB.p-deltaLenth*norm;
 */
             CollisionResponse3(agentA,agentB);
             agentA.collide=false;

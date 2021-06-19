@@ -89,6 +89,12 @@ public:
                             , InstanceLayout::ms_layout, BGFX_BUFFER_ALLOW_RESIZE
                             );
 
+        instanceBufferLink2= bgfx::createDynamicVertexBuffer(
+                            // Static data can be passed with bgfx::makeRef
+                              bgfx::makeRef(instanceInit, sizeof(instanceInit) )
+                            , InstanceLayout::ms_layout, BGFX_BUFFER_ALLOW_RESIZE
+                            );
+
 
         m_numLights = 4;
         u_lightPosRadius = bgfx::createUniform("u_lightPosRadius", bgfx::UniformType::Vec4, m_numLights);
@@ -116,7 +122,7 @@ public:
         m_timeOffset = bx::getHPCounter();
 
         cameraCreate();
-        cameraSetPosition({ 0.0f, 175.f, 50.0f });
+        cameraSetPosition({ 0.0f, 195.f, 90.0f });
         cameraSetVerticalAngle(bx::toRad(-90));
         cameraSetHorizontalAngle(bx::toRad(0));
 
@@ -798,7 +804,7 @@ public:
           int numberOfSphere=0;
 
 /*
-          for(auto pos:model->Positions())
+          for(auto pos:model->ps())
           {
             dde.push();
 
@@ -877,13 +883,13 @@ public:
                         //                 ,agent.radius
                         //                 ,agent.radius);
 
-                       // mtx[12] = agent.position.x;
+                       // mtx[12] = agent.p.x;
                        // mtx[13] = 0;
-                       // mtx[14] = agent.position.y;
+                       // mtx[14] = agent.p.y;
 
-                        float dist=bx::length(bx::Vec3(agent.position.x,
+                        float dist=bx::length(bx::Vec3(agent.p.x,
                                                        0,
-                                                       agent.position.y));
+                                                       agent.p.y));
                         int cR=55;
                         int cG=155;
                         int cB=115;
@@ -893,8 +899,8 @@ public:
 
                         bx::mtxSRT(mtx,
                                     agent.radius,0.5,agent.radius,
-                                    0, agent.direction, 0,
-                                    agent.position.x,0,agent.position.y
+                                    0, agent.a, 0,
+                                    agent.p.x,0,agent.p.y
                                     );
 
                         uint32_t colorDist=ColorConvert(cR,cG,cB);
@@ -956,7 +962,7 @@ public:
           {
               for(int i=0; i<agent.numVertex; i++)
               {
-                    bx::Vec3 tempVect=bx::Vec3(agent.subPosition[i].x,0, agent.subPosition[i].y);
+                    bx::Vec3 tempVect=bx::Vec3(agent.subp[i].x,0, agent.subp[i].y);
                     dde.push();
                         float spRadius=0.5;
                         dde.setColor(tempColor1);
@@ -976,6 +982,114 @@ public:
           //Debug draw contsraints
 
 
+          {
+              int numberOfSpheres=0;
+              int numberOfCylinders=0;
+              for(auto agent:env->agents)
+              {
+                  numberOfSpheres++;
+
+              }
+
+              if(numberOfSpheres>0)
+              {
+                  // 80 bytes stride = 64 bytes for 4x4 matrix + 16 bytes for RGBA color.
+                  const uint16_t instanceStride = 80;
+                  // number of instances
+                  const uint32_t numInstances= numberOfSpheres;
+                  auto instanceData=new InstanceLayout[numInstances];
+
+                  int index=0;
+
+                  for(auto agent:env->agents)
+                  {
+                          float mtx[16];
+
+                          bx::Vec3 bpoint1=bx::Vec3(0,0,200);
+
+                          bx::Vec3 bpoint2=bx::Vec3(agent.subp[0].x,
+                                                    0,
+                                                    agent.subp[0].y);
+
+
+                          //bx::Vec3 bpoint2=bx::add(bpoint1,bx::mul(bx::Vec3(segment.direction.x,segment.direction.y,segment.direction.z),TentacleSPACING));
+
+                          float dist=bx::length(bx::sub(bpoint2,bpoint1));
+                          bx::Vec3 normal = bx::normalize(bx::sub(bpoint2,bpoint1));
+
+                          bx::Vec3 targetPoint1=bpoint1;
+                          bx::Vec3 distNorm3=normal;
+                          bx::Vec3 targetPoint3=targetPoint1;
+
+                          bx::Vec3 Scale=bx::Vec3( 0.3f,1.0f*dist,0.3f);
+                          mtxFromNormalScale(mtx, normal, Scale, targetPoint3);
+
+
+                          int cR=55;
+                          int cG=55;
+                          int cB=75;
+
+                            uint32_t colorDist=ColorConvert(cR,cG,cB);
+
+                            instanceData[index].color[0] = cR/255.0f;
+                            instanceData[index].color[1] = cG/255.0f;
+                            instanceData[index].color[2] = cB/255.0f;
+                            instanceData[index].color[3] = 1.0f;
+
+                            instanceData[index].data0[0]=mtx[0];
+                            instanceData[index].data0[1]=mtx[1];
+                            instanceData[index].data0[2]=mtx[2];
+                            instanceData[index].data0[3]=mtx[3];
+
+                            instanceData[index].data1[0]=mtx[4];
+                            instanceData[index].data1[1]=mtx[5];
+                            instanceData[index].data1[2]=mtx[6];
+                            instanceData[index].data1[3]=mtx[7];
+
+                            instanceData[index].data2[0]=mtx[8];
+                            instanceData[index].data2[1]=mtx[9];
+                            instanceData[index].data2[2]=mtx[10];
+                            instanceData[index].data2[3]=mtx[11];
+
+                            instanceData[index].data3[0]=mtx[12];
+                            instanceData[index].data3[1]=mtx[13];
+                            instanceData[index].data3[2]=mtx[14];
+                            instanceData[index].data3[3]=mtx[15];
+
+                            index++;
+                }
+
+
+
+
+
+                const bgfx::Memory* mem3 = bgfx::copy(instanceData, numInstances*sizeof(InstanceLayout));
+                bgfx::update(instanceBufferLink2, 0, mem3);
+
+                // Set vertex and index buffer.
+                bgfx::setVertexBuffer(0, m_vbh_cyl);
+                bgfx::setIndexBuffer(m_ibh_cyl);
+
+                // Set instance data buffer.
+                bgfx::setInstanceDataBuffer(instanceBufferLink2,0,numInstances);
+
+                // Set render states.
+                bgfx::setState(BGFX_STATE_DEFAULT);
+
+                // Submit primitive for rendering to view 0.
+                bgfx::submit(0, m_program);
+
+                free(instanceData);
+              }
+
+          }
+
+
+
+
+          //Debug draw contsraints
+
+/*
           {
               int numberOfSpheres=0;
               for(auto contraint:env->constraints)
@@ -1002,11 +1116,11 @@ public:
                       {
                           float mtx[16];
 
-                          bx::Vec3 bpoint1=bx::Vec3(env->agents[contraint.body1Index].subPosition[contraint.body1SubPointIndex].x, 0,
-                                                    env->agents[contraint.body1Index].subPosition[contraint.body1SubPointIndex].y);
+                          bx::Vec3 bpoint1=bx::Vec3(env->agents[contraint.body1Index].subp[contraint.body1SubPointIndex].x, 0,
+                                                    env->agents[contraint.body1Index].subp[contraint.body1SubPointIndex].y);
 
-                          bx::Vec3 bpoint2=bx::Vec3(env->agents[contraint.body2Index].subPosition[contraint.body2SubPointIndex].x, 0,
-                                                    env->agents[contraint.body2Index].subPosition[contraint.body2SubPointIndex].y);
+                          bx::Vec3 bpoint2=bx::Vec3(env->agents[contraint.body2Index].subp[contraint.body2SubPointIndex].x, 0,
+                                                    env->agents[contraint.body2Index].subp[contraint.body2SubPointIndex].y);
 
 
                           //bx::Vec3 bpoint2=bx::add(bpoint1,bx::mul(bx::Vec3(segment.direction.x,segment.direction.y,segment.direction.z),TentacleSPACING));
@@ -1081,7 +1195,7 @@ public:
 
           }
 
-
+*/
 
 
 
@@ -1118,6 +1232,7 @@ public:
 
     bgfx::DynamicVertexBufferHandle  instanceBuffer;
     bgfx::DynamicVertexBufferHandle  instanceBufferLink;
+    bgfx::DynamicVertexBufferHandle  instanceBufferLink2;
 
   //  std::vector<bgfx::VertexBufferHandle> m_vbhList;
   //  std::vector<bgfx::IndexBufferHandle>  m_ibhList;

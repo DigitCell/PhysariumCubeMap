@@ -5,6 +5,7 @@
 #include "../constants.hpp"
 #include "vec3.h"
 #include "vec2.h"
+#include "cpTransform.h"
 #include "maths.h"
 #include "array"
 #include <memory>

@@ -92,6 +92,8 @@ SET(TARGET_H
 
     particle/body.hpp
     particle/constraint.hpp
+    particle/cpTransform.h
+    particle/solver_cpu.hpp
     environment.hpp
     SupportBGFX.hpp
     GraphModule.hpp
@@ -104,6 +106,7 @@ SET(TARGET_H
 
 SET(TARGET_SRC
 
+    particle/solver_cpu.cpp
     environment.cpp
     mainloop.cpp
     main.cpp

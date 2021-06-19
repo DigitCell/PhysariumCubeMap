@@ -41,7 +41,7 @@ const Vec2 WorldSize=Vec2(100,200);
 
 //Gravity
 
-const Vec2 Env_gravity=Vec2(0,-0.0f);
+const Vec2 Env_gravity=Vec2(0,-9.8f);
 const float Env_gravityFloat=-9.8f;
 //DNATentacle
 
@@ -61,11 +61,11 @@ const float AgentIMPULSE = 1.10;
 //Environment
 
 
-const int EnvironmentDEFAULT_AGENT_COUNT =12;
+const int EnvironmentDEFAULT_AGENT_COUNT =41;
 
 const int EnvSubPoint_Count =8;
 
-const float EnvironmentFRAME_TIME = 0.0125f;//1 / 60.0f;
+const float EnvironmentFRAME_TIME = 0.015f;//1 / 60.0f;
 const float EnvironmentWARP_STEP = EnvironmentFRAME_TIME * 10;
 
 
