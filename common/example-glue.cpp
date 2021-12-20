@@ -121,7 +121,7 @@ static void resourceBar(const char* _name, const char* _tooltip, uint32_t _num, 
 }
 
 static bool s_showStats = false;
-
+/*
 void showExampleDialog(entry::AppI* _app, const char* _errorText)
 {
 	char temp[1024];
@@ -481,3 +481,4 @@ void showExampleDialog(entry::AppI* _app, const char* _errorText)
 
 	ImGui::End();
 }
+*/

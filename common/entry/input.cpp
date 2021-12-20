@@ -19,8 +19,8 @@ namespace stl = tinystl;
 struct InputMouse
 {
 	InputMouse()
-		: m_width(1280)
-		, m_height(720)
+        : m_width(1600)
+        , m_height(900)
 		, m_wheelDelta(120)
 		, m_lock(false)
 	{

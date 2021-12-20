@@ -6,8 +6,20 @@
 #ifndef ENTRY_H_HEADER_GUARD
 #define ENTRY_H_HEADER_GUARD
 
+#pragma once
 
-#include "../../environment.hpp"
+#include "bgfx_utils.h"
+
+#include <bgfx/bgfx.h>
+#include <bx/commandline.h>
+#include <bx/endian.h>
+#include <bx/math.h>
+#include <bx/readerwriter.h>
+
+#include "algorithm"
+#include <cmath>
+
+#define SPRITE_TEXTURE_SIZE 1024
 
 #include "dbg.h"
 #include <bx/bx.h>
@@ -16,7 +28,7 @@
 
 namespace bx { struct FileReaderI; struct FileWriterI; struct AllocatorI; }
 
-extern "C" int _main_(int _argc, char** _argv);
+//extern "C" int _main_(int _argc, char** _argv);
 
 #define ENTRY_WINDOW_FLAG_NONE         UINT32_C(0x00000000)
 #define ENTRY_WINDOW_FLAG_ASPECT_RATIO UINT32_C(0x00000001)
@@ -26,20 +38,10 @@ extern "C" int _main_(int _argc, char** _argv);
 #	define ENTRY_CONFIG_IMPLEMENT_MAIN 0
 #endif // ENTRY_CONFIG_IMPLEMENT_MAIN
 
-#if ENTRY_CONFIG_IMPLEMENT_MAIN
-#define ENTRY_IMPLEMENT_MAIN(_app, ...)                 \
-	int _main_(int _argc, char** _argv)                 \
-	{                                                   \
-			_app app(__VA_ARGS__);                      \
-			return entry::runApp(&app, _argc, _argv);   \
-	}
-#else
-#define ENTRY_IMPLEMENT_MAIN(_app, ...) \
-	_app s_ ## _app ## App(__VA_ARGS__)
-#endif // ENTRY_CONFIG_IMPLEMENT_MAIN
 
 namespace entry
 {
+
 	struct WindowHandle  { uint16_t idx; };
 	inline bool isValid(WindowHandle _handle)  { return UINT16_MAX != _handle.idx; }
 
@@ -281,23 +283,25 @@ namespace entry
 
 	bool processWindowEvents(WindowState& _state, uint32_t& _debug, uint32_t& _reset);
 
-	class BX_NO_VTABLE AppI
+    //class BX_NO_VTABLE AppI
+    class AppI
 	{
 	public:
 		///
 		AppI(const char* _name, const char* _description, const char* _url = "https://bkaradzic.github.io/bgfx/index.html");
 
 		///
-		virtual ~AppI() = 0;
+         ~AppI();
 
 		///
-		virtual void init(int32_t _argc, const char* const* _argv, uint32_t _width, uint32_t _height) = 0;
+        //virtual
+        void init(AppI* ss,int32_t _argc, const char* const* _argv, uint32_t _width, uint32_t _height);
 
 		///
-        virtual int  shutdown() = 0;
+        int shutdown();
 
 		///
-        virtual bool update(Environment* env) = 0;
+        bool update(bool tex_update, uintptr_t _tx_pointer[6], uintptr_t _vbo_pointer[6]);
 
 		///
 		const char* getName() const;
@@ -309,14 +313,74 @@ namespace entry
 		const char* getUrl() const;
 
 		///
-		AppI* getNext();
+        //AppI* getNext();
 
-		AppI* m_next;
+        //AppI* m_next;
 
 	private:
 		const char* m_name;
 		const char* m_description;
 		const char* m_url;
+
+    public:
+        entry::MouseState m_mouseState;
+
+        uint32_t m_width;
+        uint32_t m_height;
+        uint32_t m_debug;
+        uint32_t m_reset;
+
+        bgfx::VertexBufferHandle m_vbh;
+        bgfx::IndexBufferHandle  m_ibh;
+
+        bgfx::VertexBufferHandle m_vbh_cyl;
+        bgfx::IndexBufferHandle  m_ibh_cyl;
+
+        bgfx::VertexBufferHandle m_vbh_cyl_s;
+        bgfx::IndexBufferHandle  m_ibh_cyl_s;
+
+        bgfx::DynamicVertexBufferHandle  instanceBuffer;
+        bgfx::DynamicVertexBufferHandle  instanceBufferLink;
+        bgfx::DynamicVertexBufferHandle  instanceBufferLink2;
+
+        bgfx::TextureHandle m_texture2d;
+        bgfx::TextureHandle m_texture2d_2;
+        uintptr_t tx_pointer;
+
+      //  std::vector<bgfx::VertexBufferHandle> m_vbhList;
+      //  std::vector<bgfx::IndexBufferHandle>  m_ibhList;
+
+        bgfx::ProgramHandle m_program;
+    /*
+        bgfx::UniformHandle s_texColor;
+        bgfx::UniformHandle s_texNormal;
+        bgfx::TextureHandle m_textureColor;
+        std::vector<bgfx::TextureHandle> m_textureColorList;
+        bgfx::TextureHandle m_textureNormal;
+        */
+        bgfx::UniformHandle u_lightPosRadius;
+        bgfx::UniformHandle u_lightRgbInnerR;
+
+
+        uint16_t m_numLights;
+        bool m_instancingSupported;
+
+        int32_t m_pt;
+
+        int numberVertex=0;
+        int64_t m_timeOffset;
+
+        int colorMesh=0;
+        int meshSize=1;
+
+        int tick=0;
+        bool runSolver=true;
+        bool maxBuffer=false;
+
+
+        bool stepClick=false;
+        bool runSimulation=false;
+
 	};
 
 	///
@@ -330,7 +394,7 @@ namespace entry
 
     ///
       int initApp(AppI* _app, int _argc, const char* const* _argv);
-      bool stepApp(AppI* _app, Environment* env);
+      bool stepApp(AppI* _app);
       int shutdownApp(AppI* _app);
 
 } // namespace entry

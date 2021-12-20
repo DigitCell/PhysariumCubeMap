@@ -6,37 +6,17 @@
 #ifndef ENTRY_PRIVATE_H_HEADER_GUARD
 #define ENTRY_PRIVATE_H_HEADER_GUARD
 
-#define TINYSTL_ALLOCATOR entry::TinyStlAllocator
+//#define TINYSTL_ALLOCATOR entry::TinyStlAllocator
 
 #include <bx/spscqueue.h>
 #include <bx/filepath.h>
 
 #include "entry.h"
-
-#ifndef ENTRY_CONFIG_USE_NOOP
-#	define ENTRY_CONFIG_USE_NOOP 0
-#endif // ENTRY_CONFIG_USE_NOOP
+#include "../../environment.hpp"
 
 #ifndef ENTRY_CONFIG_USE_SDL
 #	define ENTRY_CONFIG_USE_SDL 0
 #endif // ENTRY_CONFIG_USE_SDL
-
-#ifndef ENTRY_CONFIG_USE_GLFW
-#	define ENTRY_CONFIG_USE_GLFW 0
-#endif // ENTRY_CONFIG_USE_GLFW
-
-#ifndef ENTRY_CONFIG_USE_WAYLAND
-#	define ENTRY_CONFIG_USE_WAYLAND 0
-#endif // ENTRY_CONFIG_USE_WAYLAND
-
-#if !defined(ENTRY_CONFIG_USE_NATIVE) \
-	&& !ENTRY_CONFIG_USE_NOOP \
-	&& !ENTRY_CONFIG_USE_SDL \
-	&& !ENTRY_CONFIG_USE_GLFW
-#	define ENTRY_CONFIG_USE_NATIVE 1
-#else
-#	define ENTRY_CONFIG_USE_NATIVE 0
-#endif // ...
 
 #ifndef ENTRY_CONFIG_MAX_WINDOWS
 #	define ENTRY_CONFIG_MAX_WINDOWS 8
@@ -47,8 +27,8 @@
 #endif // ENTRY_CONFIG_MAX_GAMEPADS
 
 #if !defined(ENTRY_DEFAULT_WIDTH) && !defined(ENTRY_DEFAULT_HEIGHT)
-#	define ENTRY_DEFAULT_WIDTH  1280
-#	define ENTRY_DEFAULT_HEIGHT 980
+#	define ENTRY_DEFAULT_WIDTH  1600
+#	define ENTRY_DEFAULT_HEIGHT 900
 #elif !defined(ENTRY_DEFAULT_WIDTH) || !defined(ENTRY_DEFAULT_HEIGHT)
 #	error "Both ENTRY_DEFAULT_WIDTH and ENTRY_DEFAULT_HEIGHT must be defined."
 #endif // ENTRY_DEFAULT_WIDTH
@@ -72,7 +52,10 @@ namespace entry
 		static void static_deallocate(void* _ptr, size_t /*_bytes*/);
 	};
 
-	int main(int _argc, const char* const* _argv);
+    int mainTH(int _argc, const char* const* _argv);
+    int mainTHStart(int _argc, const char* const* _argv);
+    int mainTHUpdate(bool tex_update, uintptr_t _tx_pointer[num_textures], uintptr_t _vbo_pointer[num_textures], Environment *env);
+    int mainTHShutdown();
 
 	char keyToAscii(Key::Enum _key, uint8_t _modifiers);
 
@@ -300,6 +283,7 @@ namespace entry
 		{
 			return m_queue.pop();
 		}
+
 
 		const Event* poll(WindowHandle _handle)
 		{

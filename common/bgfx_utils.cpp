@@ -98,39 +98,38 @@ static void* loadMem(bx::FileReaderI* _reader, bx::AllocatorI* _allocator, const
 
 static bgfx::ShaderHandle loadShader(bx::FileReaderI* _reader, const char* _name)
 {
-    char filePath[512];
+	char filePath[512];
 
-        const char* shaderPath2 = BGFX_BUILDDIR;
-        const char* shaderPath2t = "/home/geotyper/CPP_bgfx_shaders/runtime/";
-        const char* shaderPath = "???";
+	const char* shaderPath = "???";
 
-        switch (bgfx::getRendererType() )
-        {
-        case bgfx::RendererType::Noop:
-        case bgfx::RendererType::Direct3D9:  shaderPath = "shaders/dx9/";   break;
-        case bgfx::RendererType::Direct3D11:
-        case bgfx::RendererType::Direct3D12: shaderPath = "shaders/dx11/";  break;
-        case bgfx::RendererType::Gnm:        shaderPath = "shaders/pssl/";  break;
-        case bgfx::RendererType::Metal:      shaderPath = "shaders/metal/"; break;
-        case bgfx::RendererType::Nvn:        shaderPath = "shaders/nvn/";   break;
-        case bgfx::RendererType::OpenGL:     shaderPath = "shaders/glsl/";  break;
-        case bgfx::RendererType::OpenGLES:   shaderPath = "shaders/essl/";  break;
-        case bgfx::RendererType::Vulkan:     shaderPath = "shaders/spirv/"; break;
+	switch (bgfx::getRendererType() )
+	{
+	case bgfx::RendererType::Noop:
+	case bgfx::RendererType::Direct3D9:  shaderPath = "shaders/dx9/";   break;
+	case bgfx::RendererType::Direct3D11:
+	case bgfx::RendererType::Direct3D12: shaderPath = "shaders/dx11/";  break;
+	case bgfx::RendererType::Agc:
+	case bgfx::RendererType::Gnm:        shaderPath = "shaders/pssl/";  break;
+	case bgfx::RendererType::Metal:      shaderPath = "shaders/metal/"; break;
+	case bgfx::RendererType::Nvn:        shaderPath = "shaders/nvn/";   break;
+    case bgfx::RendererType::OpenGL:     shaderPath = "../shaders/glsl/";  break;
+	case bgfx::RendererType::OpenGLES:   shaderPath = "shaders/essl/";  break;
+	case bgfx::RendererType::Vulkan:     shaderPath = "shaders/spirv/"; break;
+	case bgfx::RendererType::WebGPU:     shaderPath = "shaders/spirv/"; break;
 
-        case bgfx::RendererType::Count:
-            BX_ASSERT(false, "You should not be here!");
-            break;
-        }
+	case bgfx::RendererType::Count:
+		BX_ASSERT(false, "You should not be here!");
+		break;
+	}
 
-        bx::strCopy(filePath, BX_COUNTOF(filePath), shaderPath2);
-        bx::strCat(filePath, BX_COUNTOF(filePath), shaderPath);
-        bx::strCat(filePath, BX_COUNTOF(filePath), _name);
-        bx::strCat(filePath, BX_COUNTOF(filePath), ".bin");
+	bx::strCopy(filePath, BX_COUNTOF(filePath), shaderPath);
+	bx::strCat(filePath, BX_COUNTOF(filePath), _name);
+	bx::strCat(filePath, BX_COUNTOF(filePath), ".bin");
 
-        bgfx::ShaderHandle handle = bgfx::createShader(loadMem(_reader, filePath) );
-        bgfx::setName(handle, _name);
+	bgfx::ShaderHandle handle = bgfx::createShader(loadMem(_reader, filePath) );
+	bgfx::setName(handle, _name);
 
-        return handle;
+	return handle;
 }
 
 bgfx::ShaderHandle loadShader(const char* _name)

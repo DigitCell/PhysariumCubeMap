@@ -7,6 +7,9 @@
 #include <bx/file.h>
 #include <bx/sort.h>
 #include <bgfx/bgfx.h>
+#include "bgfx/platform.h"
+
+#include "bx/timer.h"
 
 #include <time.h>
 
@@ -18,14 +21,15 @@
 #include "cmd.h"
 #include "input.h"
 
-extern "C" int32_t _main_(int32_t _argc, char** _argv);
+#include "../../bgfxappl.hpp"
+#include "../../environment.hpp"
 
 namespace entry
 {
 	static uint32_t s_debug = BGFX_DEBUG_NONE;
 	static uint32_t s_reset = BGFX_RESET_NONE;
-	static uint32_t s_width = ENTRY_DEFAULT_WIDTH;
-	static uint32_t s_height = ENTRY_DEFAULT_HEIGHT;
+    static uint32_t s_width = ENTRY_DEFAULT_WIDTH;
+    static uint32_t s_height = ENTRY_DEFAULT_HEIGHT;
 	static bool s_exit = false;
 
 	static bx::FileReaderI* s_fileReader = NULL;
@@ -211,7 +215,7 @@ BX_PRAGMA_DIAGNOSTIC_POP();
 		const bool isChar = (Key::KeyA <= _key && _key <= Key::KeyZ);
 		if (isChar)
 		{
-			enum { ShiftMask = Modifier::LeftShift|Modifier::RightShift };
+            enum { ShiftMask = Modifier::LeftShift|Modifier::RightShift };
 
 			const bool shift = !!(_modifiers&ShiftMask);
 			return (shift ? 'A' : 'a') + char(_key - Key::KeyA);
@@ -326,7 +330,7 @@ BX_PRAGMA_DIAGNOSTIC_POP();
 			else if (0 == bx::strCmp(_argv[1], "fullscreen") )
 			{
 				WindowHandle window = { 0 };
-				toggleFullscreen(window);
+                toggleFullscreen(window);
 				return bx::kExitSuccess;
 			}
 		}
@@ -363,206 +367,78 @@ BX_PRAGMA_DIAGNOSTIC_POP();
 		INPUT_BINDING_END
 	};
 
-#if BX_PLATFORM_EMSCRIPTEN
-	static AppI* s_app;
-	static void updateApp()
-	{
-		s_app->update();
-	}
-#endif // BX_PLATFORM_EMSCRIPTEN
 
-	static AppI*    s_currentApp = NULL;
-	static AppI*    s_apps       = NULL;
+   // static AppIs*    s_currentApp = NULL;
+    static AppIs*    s_apps       = NULL;
 	static uint32_t s_numApps    = 0;
 
 	static char s_restartArgs[1024] = { '\0' };
-
-	static AppI* getCurrentApp(AppI* _set = NULL)
+/*
+    static AppIs* getCurrentApp(AppIs* _set = NULL)
 	{
 		if (NULL != _set)
 		{
-			s_currentApp = _set;
+            s_currentApp = _set;
 		}
 		else if (NULL == s_currentApp)
 		{
-			s_currentApp = getFirstApp();
+            s_currentApp = getFirstApp();
 		}
 
-		return s_currentApp;
+        return s_currentApp;
 	}
+*/
 
-	static AppI* getNextWrap(AppI* _app)
-	{
-		AppI* next = _app->getNext();
-		if (NULL != next)
-		{
-			return next;
-		}
-
-		return getFirstApp();
-	}
-
-	int cmdApp(CmdContext* /*_context*/, void* /*_userData*/, int _argc, char const* const* _argv)
-	{
-		if (0 == bx::strCmp(_argv[1], "restart") )
-		{
-			if (2 == _argc)
-			{
-				bx::strCopy(s_restartArgs, BX_COUNTOF(s_restartArgs), getCurrentApp()->getName() );
-				return bx::kExitSuccess;
-			}
-
-			if (0 == bx::strCmp(_argv[2], "next") )
-			{
-				AppI* next = getNextWrap(getCurrentApp() );
-				bx::strCopy(s_restartArgs, BX_COUNTOF(s_restartArgs), next->getName() );
-				return bx::kExitSuccess;
-			}
-			else if (0 == bx::strCmp(_argv[2], "prev") )
-			{
-				AppI* prev = getCurrentApp();
-				for (AppI* app = getNextWrap(prev); app != getCurrentApp(); app = getNextWrap(app) )
-				{
-					prev = app;
-				}
-
-				bx::strCopy(s_restartArgs, BX_COUNTOF(s_restartArgs), prev->getName() );
-				return bx::kExitSuccess;
-			}
-
-			for (AppI* app = getFirstApp(); NULL != app; app = app->getNext() )
-			{
-				if (0 == bx::strCmp(_argv[2], app->getName() ) )
-				{
-					bx::strCopy(s_restartArgs, BX_COUNTOF(s_restartArgs), app->getName() );
-					return bx::kExitSuccess;
-				}
-			}
-		}
-
-		return bx::kExitFailure;
-	}
-
-	AppI::AppI(const char* _name, const char* _description, const char* _url)
-	{
-		m_name        = _name;
-		m_description = _description;
-		m_url         = _url;
-		m_next        = s_apps;
-
-		s_apps = this;
-		s_numApps++;
-	}
-
-	AppI::~AppI()
-	{
-		for (AppI* prev = NULL, *app = s_apps, *next = app->getNext()
-			; NULL != app
-			; prev = app, app = next, next = app->getNext() )
-		{
-			if (app == this)
-			{
-				if (NULL != prev)
-				{
-					prev->m_next = next;
-				}
-				else
-				{
-					s_apps = next;
-				}
-
-				--s_numApps;
-
-				break;
-			}
-		}
-	}
-
-	const char* AppI::getName() const
-	{
-		return m_name;
-	}
-
-	const char* AppI::getDescription() const
-	{
-		return m_description;
-	}
-
-	const char* AppI::getUrl() const
-	{
-		return m_url;
-	}
-
-	AppI* AppI::getNext()
-	{
-		return m_next;
-	}
-
-	AppI* getFirstApp()
-	{
-		return s_apps;
-	}
-
+    static AppIs* getCurrentApp()
+    {
+        return s_apps;
+    }
 	uint32_t getNumApps()
 	{
 		return s_numApps;
 	}
 
-	int runApp(AppI* _app, int _argc, const char* const* _argv)
+    int runApp(AppIs* _app, int _argc, const char* const* _argv)
 	{
-		_app->init(_argc, _argv, s_width, s_height);
+        _app->init(_app,_argc, _argv, s_width, s_height);
 		bgfx::frame();
 
 		WindowHandle defaultWindow = { 0 };
 		setWindowSize(defaultWindow, s_width, s_height);
-
-#if BX_PLATFORM_EMSCRIPTEN
-		s_app = _app;
-		emscripten_set_main_loop(&updateApp, -1, 1);
-#else
-        while (_app->update(nullptr) )
+/*
+        while (_app->update() )
 		{
 			if (0 != bx::strLen(s_restartArgs) )
 			{
 				break;
 			}
 		}
-#endif // BX_PLATFORM_EMSCRIPTEN
 
 		return _app->shutdown();
+        */
 	}
 
-	static int32_t sortApp(const void* _lhs, const void* _rhs)
-	{
-		const AppI* lhs = *(const AppI**)_lhs;
-		const AppI* rhs = *(const AppI**)_rhs;
+    int initApp(AppIs* _app, int _argc, const char* const* _argv)
+    {
+        _app->init(_app, _argc, _argv, s_width, s_height);
+        bgfx::frame();
 
-		return bx::strCmpI(lhs->getName(), rhs->getName() );
-	}
+        WindowHandle defaultWindow = { 0 };
+        setWindowSize(defaultWindow, s_width, s_height);
 
+        return 1;
+    }
 
-    int initApp(AppI* _app, int _argc, const char* const* _argv)
-        {
-            _app->init(_argc, _argv, s_width, s_height);
-            bgfx::frame();
+    bool stepApp(AppIs* _app)
+    {
+       //return _app->update(false,0);
 
-            WindowHandle defaultWindow = { 0 };
-            setWindowSize(defaultWindow, s_width, s_height);
+    }
+    int shutdownApp(AppIs* _app)
+    {
 
-            return 1;
-        }
-
-        bool stepApp(AppI* _app, Environment* env)
-        {
-            return _app->update(env);
-
-
-        }
-        int shutdownApp(AppI* _app)
-        {
-
-            return _app->shutdown();
-        }
+        return _app->shutdown();
+    }
 
 	static void sortApps()
 	{
@@ -570,7 +446,7 @@ BX_PRAGMA_DIAGNOSTIC_POP();
 		{
 			return;
 		}
-
+/*
 		AppI** apps = (AppI**)BX_ALLOC(g_allocator, s_numApps*sizeof(AppI*) );
 
 		uint32_t ii = 0;
@@ -589,9 +465,10 @@ BX_PRAGMA_DIAGNOSTIC_POP();
 		apps[s_numApps-1]->m_next = NULL;
 
 		BX_FREE(g_allocator, apps);
+        */
 	}
 
-	int main(int _argc, const char* const* _argv)
+    int mainTH(int _argc, const char* const* _argv)
 	{
 		//DBG(BX_COMPILER_NAME " / " BX_CPU_NAME " / " BX_ARCH_NAME " / " BX_PLATFORM_NAME);
 
@@ -602,7 +479,7 @@ BX_PRAGMA_DIAGNOSTIC_POP();
 		cmdAdd("mouselock", cmdMouseLock);
 		cmdAdd("graphics",  cmdGraphics );
 		cmdAdd("exit",      cmdExit     );
-		cmdAdd("app",       cmdApp      );
+        //cmdAdd("app",       cmdApp      );
 
 		inputInit();
 		inputAddBindings("bindings", s_bindings);
@@ -625,15 +502,7 @@ BX_PRAGMA_DIAGNOSTIC_POP();
 		}
 
 restart:
-		AppI* selected = NULL;
 
-		for (AppI* app = getFirstApp(); NULL != app; app = app->getNext() )
-		{
-			if (NULL == selected
-			&&  !bx::strFindI(app->getName(), find).isEmpty() )
-			{
-				selected = app;
-			}
 #if 0
 			DBG("%c %s, %s"
 				, app == selected ? '>' : ' '
@@ -641,18 +510,9 @@ restart:
 				, app->getDescription()
 				);
 #endif // 0
-		}
 
 		int32_t result = bx::kExitSuccess;
 		s_restartArgs[0] = '\0';
-		if (0 == s_numApps)
-		{
-			result = ::_main_(_argc, (char**)_argv);
-		}
-		else
-		{
-			result = runApp(getCurrentApp(selected), _argc, _argv);
-		}
 
 		if (0 != bx::strLen(s_restartArgs) )
 		{
@@ -675,6 +535,95 @@ restart:
 
 		return result;
 	}
+
+    int mainTHStart(int _argc, const char* const* _argv)
+    {
+        //DBG(BX_COMPILER_NAME " / " BX_CPU_NAME " / " BX_ARCH_NAME " / " BX_PLATFORM_NAME);
+
+        s_fileReader = BX_NEW(g_allocator, FileReader);
+        s_fileWriter = BX_NEW(g_allocator, FileWriter);
+
+        cmdInit();
+        cmdAdd("mouselock", cmdMouseLock);
+        cmdAdd("graphics",  cmdGraphics );
+        cmdAdd("exit",      cmdExit     );
+        //cmdAdd("app",       cmdApp      );
+
+        inputInit();
+        inputAddBindings("bindings", s_bindings);
+
+        entry::WindowHandle defaultWindow = { 0 };
+
+        bx::FilePath fp(_argv[0]);
+        char title[bx::kMaxFilePath];
+        bx::strCopy(title, BX_COUNTOF(title), fp.getBaseName() );
+
+        entry::setWindowTitle(defaultWindow, title);
+        setWindowSize(defaultWindow, ENTRY_DEFAULT_WIDTH, ENTRY_DEFAULT_HEIGHT);
+
+restart:
+      //  AppI* selected = NULL;
+
+       // AppIs* selected = new AppIs("a1","a2","a3");
+        s_apps=new AppIs("a1","a2","a3");
+/*
+        for (AppI* app = getFirstApp(); NULL != app; app = app->getNext() )
+        {
+            if (NULL == selected
+            &&  !bx::strFindI(app->getName(), find).isEmpty() )
+            {
+                selected = app;
+            }
+            */
+       // selected=getCurrentApp();
+#if 0
+            DBG("%c %s, %s"
+                , app == selected ? '>' : ' '
+                , app->getName()
+                , app->getDescription()
+                );
+#endif // 0
+        //}
+
+        int32_t result = bx::kExitSuccess;
+        s_restartArgs[0] = '\0';
+      //  if (0 == s_numApps)
+        {
+            //result = _main_(_argc, (char**)_argv);
+           // selected->init(selected,_argc, _argv,800,600);
+            s_apps->init(s_apps,_argc, _argv,800,600);
+            //s_apps->update();
+
+        }
+        /*
+        else
+        {
+            result = runApp(getCurrentApp(selected), _argc, _argv);
+        }
+*/
+        if (0 != bx::strLen(s_restartArgs) )
+        {
+         //   find = s_restartArgs;
+            goto restart;
+        }
+
+
+        return result;
+    }
+
+    int mainTHUpdate(bool tex_update, uintptr_t _tx_pointer[numTextures], uintptr_t _vbo_pointer[numTextures], Environment *env)
+    {
+        s_apps->update(tex_update, _tx_pointer, _vbo_pointer, env);
+
+        return 1;
+    }
+
+    int mainTHShutdown()
+    {
+        s_apps->shutdown();
+
+        return 1;
+    }
 
 	WindowState s_window[ENTRY_CONFIG_MAX_WINDOWS];
 

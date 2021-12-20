@@ -1,24 +1,38 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(CellInstancing LANGUAGES CXX)
+if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+  set(CMAKE_CUDA_ARCHITECTURES 61)
+  message(CMAKE_CUDA_ARCHITECTURES)
+endif()
 
-#set(CMAKE_INCLUDE_CURRENT_DIR ON)
+project(Cuda_particles LANGUAGES CUDA CXX)
+
 set(CMAKE_CXX_STANDARD 17)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(EXECUTABLE_NAME "CellInstancing")
+set(CMAKE_CUDA_STANDARD 14)
+#set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
+
+set(EXECUTABLE_NAME "particles")
 set(homeDir "/home/geotyper")
 
-
-ADD_DEFINITIONS(-DENTRY_CONFIG_USE_SDL=2)
+# BGFX Section
+ADD_DEFINITIONS(-DENTRY_CONFIG_USE_SDL=1)
+#ADD_DEFINITIONS(-DBX_CONFIG_SUPPORTS_THREADING=no)
 ADD_DEFINITIONS(-DRUNTIME_DIR="/home/geotyper/CPP_bgfx_shaders/runtime")
 ADD_DEFINITIONS(-DBGFX_DIR="/home/geotyper/CPP_bgfx_shaders/runtime/")
 
 ADD_DEFINITIONS(-DBGFX_BUILDDIR="/home/geotyper/CPP_bgfx_shaders/runtime/")
 message(BGFX_BUILDDIR)
 
-set(core_math  ${homeDir}/CPP_lib/Core_math)
-include_directories(${core_math})
+#set(core_math  ${homeDir}/CPP_lib/Core_math)
+#include_directories(${core_math})
+
+
+set(stb_lib  ${homeDir}/CPP_lib/stb)
+include_directories(${stb_lib})
+
 
 set(BGFX_INCLUDE  ${homeDir}/CPP_lib/bgfx/include)
 set(BX_INCLUDE  ${homeDir}/CPP_lib/bx/include)
@@ -39,9 +53,28 @@ set(BGFX_LIB  ${homeDir}/CPP_lib/bgfx/.build/linux64_gcc/bin/)
 
 file(GLOB HEADERSE
     "common/entry/*.h"
+    "common/*.h"
+    "common/debugdraw/*.h"
+    "common/imgui/*.h"
+    "common/font/*.h"
+
+    # "3dparty/dear-imgui/*.h"
     )
 file(GLOB SRCE
     "common/entry/*.cpp"
+    "common/*.cpp"
+    "common/debugdraw/*.cpp"
+    "common/debugdraw/*.sc"
+
+    "common/imgui/*.cpp"
+    "common/imgui/*.sc"
+
+    "common/font/*.cpp"
+    "common/font/*.sc"
+
+    "3rdparty/dear-imgui/*.cpp"
+    "3rdparty/meshoptimizer/src/*.cpp"
+
     )
 
 
@@ -58,11 +91,9 @@ include_directories(${SDL2_INCLUDE_DIRS})
 
 find_package(CUDA REQUIRED)
 
+add_library(Common_bgfx STATIC ${HEADERSE} ${SRCE}   ${HEADERSB} ${SRCB} )
 
-add_library(Common_bgfx #STATIC
-    ${HEADERSE} ${SRCE}   ${HEADERSB} ${SRCB} )
-
-target_include_directories(Common_bgfx  PRIVATE)# ${BGFX_INCLUDE} ${BX_INCLUDE} ${BIMG_INCLUDE} ${BGFX_THIRDPARTY_INCLUDE})
+target_include_directories(Common_bgfx  PRIVATE ${BGFX_INCLUDE} ${BX_INCLUDE} ${BIMG_INCLUDE} ${BGFX_THIRDPARTY_INCLUDE} )
 target_link_libraries(Common_bgfx  ${SDL2_LIBRARIES})
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     message("debug mode")
@@ -71,7 +102,6 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_link_libraries(Common_bgfx ${BGFX_LIB}libglslangDebug.a ${BGFX_LIB}libglsl-optimizerDebug.a ${BGFX_LIB}libspirv-crossDebug.a)
     target_link_libraries(Common_bgfx ${BGFX_LIB}libbgfx-shared-libDebug.so)
     target_link_libraries(Common_bgfx ${BGFX_LIB}libspirv-optDebug.a)
-    #target_link_libraries(Common_bgfx ${BGFX_LIB}libexample-glueDebug.a)
     target_link_libraries(Common_bgfx ${BGFX_LIB}libbimgDebug.a ${BGFX_LIB}libbimg_decodeDebug.a ${BGFX_LIB}libbimg_encodeDebug.a)
     target_link_libraries(Common_bgfx -lGL -lX11 -ldl -lpthread -lrt)
 else()
@@ -81,7 +111,6 @@ else()
     target_link_libraries(Common_bgfx ${BGFX_LIB}libglslangRelease.a ${BGFX_LIB}libglsl-optimizerRelease.a ${BGFX_LIB}libspirv-crossRelease.a)
     target_link_libraries(Common_bgfx ${BGFX_LIB}libbgfx-shared-libRelease.so)
     target_link_libraries(Common_bgfx ${BGFX_LIB}libspirv-optRelease.a)
-
     target_link_libraries(Common_bgfx ${BGFX_LIB}libbimgRelease.a ${BGFX_LIB}libbimg_decodeRelease.a ${BGFX_LIB}libbimg_encodeRelease.a)
     target_link_libraries(Common_bgfx -lGL -lX11 -ldl -lpthread -lrt)
 
@@ -89,82 +118,106 @@ endif()
 
 SET(TARGET_H
     mainloop.hpp
-
-    particle/body.hpp
-    particle/constraint.hpp
-    particle/cpTransform.h
-    particle/solver_cpu.hpp
     environment.hpp
     SupportBGFX.hpp
-    GraphModule.hpp
-    #utils.hpp
-    Common_eigen.hpp
+    SupportBGFX.hpp
     constants.hpp
+    cuda_exp.hpp
+    bgfxappl.hpp
 
+    CubeMapLib.h
+    VL234f.h
 
     )
 
 SET(TARGET_SRC
-
-    particle/solver_cpu.cpp
-    environment.cpp
     mainloop.cpp
     main.cpp
+    cuda_exp.cpp
+    environment.cpp
+    bgfxappl.cpp
+
+    CubeMapLib.cpp
+
     )
 
+SET(TARGET_CUDA_H
+    particles_kernel.cuh
+    particles_kernel_impl.cuh
+    particleSystem.cuh
+    CUDA/Array.cuh
+    CUDA/CudaMemoryManager.cuh
+    CUDA/Swap.cuh
+    CUDA/Base.cuh
+    CUDA/Macros.cuh
+   # CUDA/Definitions.cuh
+    CUDA/CudaConstants.h
+    CUDA/tinycolormap.hpp
+    CUDA/checkCudaCall.hpp
+)
 
-#set(
-#    CUDA_NVCC_FLAGS
-#    ${CUDA_NVCC_FLAGS};
-#    -O3 -gencode arch=compute_61,code=sm_61
-#    )
+SET(TARGET_CUDA_SRC
+    particles_kernel.cu
+    particleSystem_cuda.cu
+)
 
-# Current arch's: http://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html#gpu-feature-list
-set(BUILD_CUDA_ARCH "62;70;72;75" CACHE STRING
-    "CUDA Architectures to build, default: 62;70;72;75")
+find_package(OpenGL REQUIRED)
+find_package(GLUT REQUIRED)
+include_directories( ${OPENGL_INCLUDE_DIRS}  ${GLUT_INCLUDE_DIRS} )
 
-# Add the compilation trajectories for different architectures.
-# See: http://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/index.html#nvcc-examples
-# I have no specific need for complicated build trajectories.
-foreach(arch ${BUILD_CUDA_ARCH})
-  # virtually real
-  list(APPEND CUDA_NVCC_FLAGS "--generate-code arch=compute_${arch},code=sm_${arch}")
-  # virtually virtual
-  list(APPEND CUDA_NVCC_FLAGS "--generate-code arch=compute_${arch},code=compute_${arch}")
-endforeach()
+#set(OpenGL_GL_PREFERENCE LEGACY)
 
-set_source_files_properties(${HEADERSE} ${SRCE} PROPERTIES COMPILE_FLAGS "-fno-rtti")
 
-#add_executable(${EXECUTABLE_NAME} ${TARGET_SRC} ${TARGET_H})
-cuda_add_executable(${EXECUTABLE_NAME} ${TARGET_SRC} ${TARGET_H})
+set(Eigen_include "/home/geotyper/CPP_lib/Eigen/Eigen")
+include_directories(${Eigen_include})
+
+set(Cuda_common_include "/usr/local/cuda/samples/common/inc")
+include_directories(${Cuda_common_include})
+
+message(${CUDA_INCLUDE_DIRS})
+include_directories(${CUDA_INCLUDE_DIRS})
+
+#add_definitions(-DHAVE_THRUST)
+### ViperLib
+#find_package (Eigen3 3.3.7 REQUIRED)
+
+add_executable(${EXECUTABLE_NAME}  ${TARGET_CUDA_H} ${TARGET_CUDA_SRC} ${TARGET_SRC} ${TARGET_H})
+
+set_target_properties(${EXECUTABLE_NAME} PROPERTIES CUDA_ARCHITECTURES "61")
+target_link_libraries(${EXECUTABLE_NAME} ${CUDA_LIBRARIES})
+#target_link_libraries (${EXECUTABLE_NAME} Eigen3::Eigen)
 
 target_link_libraries(${EXECUTABLE_NAME} ${SDL2_LIBRARIES})
+target_link_libraries(${EXECUTABLE_NAME} ${GLUT_LIBRARIES})
 target_link_libraries(${EXECUTABLE_NAME} Common_bgfx)
 
+
+set_source_files_properties(${HEADERSE} ${SRCE} PROPERTIES COMPILE_FLAGS "-fno-rtti")
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     message("debug mode")
     target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB}libbgfxDebug.a)
     target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB}libbxDebug.a ${BGFX_LIB}libfcppDebug.a)
     target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB}libglslangDebug.a ${BGFX_LIB}libglsl-optimizerDebug.a ${BGFX_LIB}libspirv-crossDebug.a)
     target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB}libbgfx-shared-libDebug.so)
-    target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB}libexample-commonDebug.a)
+    target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB} Common_bgfx)
     #target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB}libexample-glueDebug.a)
     target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB}libspirv-optDebug.a)
     target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB}libbimgDebug.a ${BGFX_LIB}libbimg_decodeDebug.a ${BGFX_LIB}libbimg_encodeDebug.a)
-    target_link_libraries(${EXECUTABLE_NAME} -lGL -lX11 -ldl -lpthread -lrt)
+    target_link_libraries(${EXECUTABLE_NAME} -lX11 -ldl -lpthread -lrt)
 else()
     message("release mode")
     target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB}libbgfxRelease.a)
     target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB}libbxRelease.a ${BGFX_LIB}libfcppRelease.a)
     target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB}libglslangRelease.a ${BGFX_LIB}libglsl-optimizerRelease.a ${BGFX_LIB}libspirv-crossRelease.a)
     target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB}libbgfx-shared-libRelease.so)
-    target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB}libexample-commonRelease.a)
+    #target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB}libexample-commonRelease.a)
     #target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB}libexample-glueRelease.a)
     target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB}libspirv-optRelease.a)
     target_link_libraries(${EXECUTABLE_NAME} ${BGFX_LIB}libbimgRelease.a ${BGFX_LIB}libbimg_decodeRelease.a ${BGFX_LIB}libbimg_encodeRelease.a)
-    target_link_libraries(${EXECUTABLE_NAME} -lGL -lX11 -ldl -lpthread -lrt)
+    target_link_libraries(${EXECUTABLE_NAME} -lX11 -ldl -lpthread -lrt)
 
 endif()
 
 #target_include_directories(${EXECUTABLE_NAME} Common_bgfx)
 target_include_directories(${EXECUTABLE_NAME} PRIVATE ${INCLUDES} ${core_math} )
+target_link_libraries(${EXECUTABLE_NAME} ${OPENGL_LIBRARIES})
